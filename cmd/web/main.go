@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sempr/goscreenshot/pkg/handlers"
+	"github.com/sempr/goscreenshot/pkg/shot"
 	"github.com/urfave/negroni"
 )
 
@@ -17,6 +18,7 @@ func prepareWeb() *mux.Router {
 }
 
 func main() {
+	defer shot.Release()
 	mux := prepareWeb()
 	neg := negroni.Classic()
 	neg.UseHandler(mux)
