@@ -90,7 +90,7 @@ func (f *ChromeObjectFactory) MakeObject() (*commonPool.PooledObject, error) {
 
 func (f *ChromeObjectFactory) DestroyObject(obj *commonPool.PooledObject) error {
 	fmt.Println("destroy chromeobject")
-	o := obj.Object.(ChromeObject)
+	o := obj.Object.(*ChromeObject)
 	o.CdpRes.Release()
 	(*o.CancleFunc)()
 	//do destroy
@@ -112,7 +112,7 @@ func (f *ChromeObjectFactory) PassivateObject(o *commonPool.PooledObject) error 
 	return nil
 }
 
-func init() {
+func Init() {
 	cdpPool, err := cdp.NewPool( /* cdp.PoolLog(log.Printf, log.Printf, log.Printf),cdp.PortRange(6000, 6005) */ )
 	if err != nil {
 		log.Fatal(err)
@@ -125,6 +125,5 @@ func init() {
 // Release all Chrome
 func Release() {
 	fmt.Println("do release now")
-	cPool.Clear()
 	cPool.Close()
 }
