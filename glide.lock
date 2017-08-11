@@ -1,0 +1,82 @@
+hash: 7bc0307debc4749baac160625342ade8100261148c70a43deb5142420271663f
+updated: 2017-08-11T15:31:12.23451558+08:00
+imports:
+- name: github.com/disintegration/imaging
+  version: a5858022df0e1734a59f973fffe3f87b51c087ed
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: bcd8bc72b08df0f70df986b97f95590779502d31
+- name: github.com/gorilla/schema
+  version: 8b1100835db5bbdae88541510f70d114b91a7e4d
+- name: github.com/gorilla/websocket
+  version: a69d9f6de432e2c6b296a947d8a5ee88f68522cf
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
+- name: github.com/jolestar/go-commons-pool
+  version: 2bda2d8f3bdf571db901f02378e92edd916380fa
+  subpackages:
+  - collections
+  - concurrent
+- name: github.com/knq/chromedp
+  version: 28f0ea85637dd6c090267c379774a7a789a797f2
+  subpackages:
+  - cdp
+  - cdp/accessibility
+  - cdp/animation
+  - cdp/applicationcache
+  - cdp/browser
+  - cdp/cachestorage
+  - cdp/cdputil
+  - cdp/css
+  - cdp/database
+  - cdp/debugger
+  - cdp/dom
+  - cdp/domdebugger
+  - cdp/domsnapshot
+  - cdp/domstorage
+  - cdp/emulation
+  - cdp/heapprofiler
+  - cdp/indexeddb
+  - cdp/input
+  - cdp/inspector
+  - cdp/io
+  - cdp/layertree
+  - cdp/log
+  - cdp/memory
+  - cdp/network
+  - cdp/overlay
+  - cdp/page
+  - cdp/performance
+  - cdp/profiler
+  - cdp/runtime
+  - cdp/schema
+  - cdp/security
+  - cdp/serviceworker
+  - cdp/storage
+  - cdp/systeminfo
+  - cdp/target
+  - cdp/tethering
+  - cdp/tracing
+  - client
+  - kb
+  - runner
+- name: github.com/knq/sysutil
+  version: 53c4155f11f69acc282e07ed0b9df3fab4874eb1
+- name: github.com/mailru/easyjson
+  version: 2f5df55504ebc322e4d52d34df6a1f5b503bf26d
+  subpackages:
+  - buffer
+  - jlexer
+  - jwriter
+- name: github.com/urfave/negroni
+  version: fde5e16d32adc7ad637e9cd9ad21d4ebc6192535
+- name: golang.org/x/image
+  version: 426cfd8eeb6e08ab1932954e09e3c2cb2bc6e36d
+  subpackages:
+  - bmp
+  - tiff
+  - tiff/lzw
+testImports: []

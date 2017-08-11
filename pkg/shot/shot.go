@@ -11,6 +11,7 @@ import (
 	cdptypes "github.com/knq/chromedp/cdp"
 	"github.com/knq/chromedp/cdp/emulation"
 	"github.com/knq/chromedp/runner"
+	"github.com/sempr/goscreenshot/constants"
 )
 
 var cPool *commonPool.ObjectPool
@@ -20,7 +21,10 @@ func prepareChromeRes(ctxt context.Context, cPool *cdp.Pool) (*cdp.Res, error) {
 		runner.Flag("headless", true),
 		runner.Flag("no-default-browser-check", true),
 		runner.Flag("no-first-run", true),
-		runner.ExecPath(`/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary`),
+		runner.Flag("disable-gpu", true),
+		runner.Flag("no-sandbox", true),
+		runner.Flag("user-data-dir", constants.UserDataDir),
+		runner.ExecPath(constants.ChromePath),
 	)
 	return c, err
 }
