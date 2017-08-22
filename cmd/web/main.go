@@ -37,6 +37,6 @@ func main() {
 	mux := prepareWeb()
 	neg := negroni.Classic()
 	neg.UseHandler(mux)
-	log.Println("Starting Web Server on port 8019")
-	log.Fatal(http.ListenAndServe(":8019", neg))
+	log.Println("Starting Web Server on port 8080")
+	log.Fatal(http.ListenAndServe(":8080", neg))
 }
