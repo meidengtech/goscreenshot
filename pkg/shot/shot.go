@@ -51,7 +51,7 @@ func Screenshot(url string, width int) ([]byte, error) {
 func screenshot(urlstr string, picbuf *[]byte, width int) cdp.Tasks {
 	return cdp.Tasks{
 		cdp.Navigate(urlstr),
-		setViewportAndScale(int64(width), 600, 1.0),
+		setViewportAndScale(int64(width), 1600, 1.0),
 		cdp.Sleep(50 * time.Millisecond),
 		cdp.WaitVisible("#ACHHcLIkD3", cdp.ByQuery),
 		cdp.Screenshot("#ACHHcLIkD3", picbuf, cdp.ByQuery),
