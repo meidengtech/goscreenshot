@@ -10,7 +10,7 @@ COPY glide.* ./
 RUN glide install
 RUN go build -o /tmp/html2image github.com/sempr/goscreenshot/cmd/web
 
-FROM yukinying/chrome-headless-browser:62.0.3178.0
+FROM sempr/chrome-headless-browser:62.0.3178.0
 COPY --from=builder /tmp/html2image /usr/bin/html2image
 ENTRYPOINT []
 USER root
