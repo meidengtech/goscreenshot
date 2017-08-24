@@ -1,0 +1,23 @@
+FROM debian:stable-slim
+
+MAINTAINER Sempr Wang <iamsempr@gmail.com>
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -y \
+  && apt-get -y install \
+       unzip gnupg wget ca-certificates apt-transport-https fontconfig xfonts-utils \
+  && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+  && echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+  && apt-get update -y \
+  && apt-get -y install google-chrome-unstable \
+  && rm /etc/apt/sources.list.d/google-chrome.list \
+  && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+RUN cd /tmp/ && wget https://noto-website.storage.googleapis.com/pkgs/NotoSansCJKsc-hinted.zip && \
+    unzip NotoSansCJKsc-hinted.zip && \
+    mkdir -p  /usr/share/fonts/zhfonts/ && mv *.otf /usr/share/fonts/zhfonts/ && cd /usr/share/fonts/zhfonts/ && \
+    chmod 644 *.otf && mkfontscale && mkfontdir && fc-cache -fv && rm -rf /tmp/fonts/ && \
+    rm -rf /tmp/*
