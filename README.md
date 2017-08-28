@@ -30,3 +30,10 @@ docker run -ti --rm -p 10070:8080 html2image
 curl -v "http://127.0.0.1:8080/render?width=620\&html=abcdefg"
 ```
 
+### TODO List
+
+- [ ] 增加js判断图片是否已经全部加载完成
+- [ ] 对输入的宽度width设定一个允许的范围
+- [ ] 可以指定高度height并且设置一个允许的范围
+- [ ] 可以换端口(不限于8080)
+- [ ] 更好一点的超时处理机制
