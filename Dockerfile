@@ -1,13 +1,13 @@
-FROM golang:1.8.3 as builder
+FROM golang:1.9 as builder
 
 WORKDIR /go/src/github.com/sempr/goscreenshot/
 RUN set -xe
 RUN go get github.com/Masterminds/glide
+COPY glide.* ./
+RUN glide install
 COPY cmd/ ./cmd
 COPY constants/ ./constants
 COPY pkg/ ./pkg
-COPY glide.* ./
-RUN glide install
 RUN go build -o /tmp/html2image github.com/sempr/goscreenshot/cmd/web
 
 FROM sempr/chrome-headless:62.0.3194.2-notofont
