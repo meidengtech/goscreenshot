@@ -11,8 +11,10 @@ COPY pkg/ ./pkg
 RUN go build -o /tmp/html2image github.com/sempr/goscreenshot/cmd/web
 
 FROM sempr/chrome-headless:62.0.3194.2-notofont
+ENV SCREENSHOT_CHROME_PATH /chrome/headless_shell
 COPY --from=builder /tmp/html2image /usr/bin/html2image
 ENTRYPOINT []
 USER root
 EXPOSE 8080
 CMD /usr/bin/html2image
+ENV SCREENSHOT_SERVER_PORT 8080

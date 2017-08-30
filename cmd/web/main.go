@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/gorilla/mux"
+	"github.com/sempr/goscreenshot/constants"
 	"github.com/sempr/goscreenshot/pkg/handlers"
 	"github.com/sempr/goscreenshot/pkg/shot"
 	"github.com/urfave/negroni"
@@ -37,6 +38,7 @@ func main() {
 	mux := prepareWeb()
 	neg := negroni.Classic()
 	neg.UseHandler(mux)
-	log.Println("Starting Web Server on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", neg))
+	portStr := fmt.Sprintf(":%d", constants.ServerPort)
+	log.Println("Starting Web Server on port ", portStr)
+	log.Fatal(http.ListenAndServe(portStr, neg))
 }

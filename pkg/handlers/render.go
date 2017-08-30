@@ -58,7 +58,7 @@ func RenderHandler(w http.ResponseWriter, r *http.Request) {
 	wrappedHTML := fmt.Sprintf(wrappedHTMLBase, constants.RESETCSS, args.HTML)
 	key := fmt.Sprintf("%d", randInt())
 	lru.SavedHTMLMap.Add(key, wrappedHTML)
-	pageURL := fmt.Sprintf("http://127.0.0.1:8080/html/%s", key)
+	pageURL := fmt.Sprintf("http://127.0.0.1:%d/html/%s", constants.ServerPort, key)
 	picbuf, err := shot.Screenshot(pageURL, args.Width)
 	if err != nil {
 		fmt.Println(err)

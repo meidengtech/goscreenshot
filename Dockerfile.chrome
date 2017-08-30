@@ -12,4 +12,5 @@ RUN apt-get update -y && \
   chmod 644 *.otf && mkfontscale && mkfontdir && fc-cache -fv && rm -rf /tmp/fonts/ && \
   rm -rf /var/lib/apt/lists/* /var/cache/apt/* 
 ENV CHROME_PATH /chrome/headless_shell
+ENV SCREENSHOT_CHROME_PATH /chrome/headless_shell
 

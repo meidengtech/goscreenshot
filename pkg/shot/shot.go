@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/knq/chromedp"
+
 	commonPool "github.com/jolestar/go-commons-pool"
 	cdp "github.com/knq/chromedp"
 	cdptypes "github.com/knq/chromedp/cdp"
@@ -26,6 +28,9 @@ func prepareChromeRes(ctxt context.Context, cPool *cdp.Pool) (*cdp.Res, error) {
 		runner.Flag("user-data-dir", constants.UserDataDir),
 		runner.ExecPath(constants.ChromePath),
 	)
+	if err != nil {
+		log.Println("prepareChromeRes: ", err)
+	}
 	return c, err
 }
 
@@ -49,12 +54,13 @@ func Screenshot(url string, width int) ([]byte, error) {
 }
 
 func screenshot(urlstr string, picbuf *[]byte, width int) cdp.Tasks {
+	fmt.Println(urlstr)
 	return cdp.Tasks{
 		cdp.Navigate(urlstr),
 		setViewportAndScale(int64(width), 1600, 1.0),
-		cdp.Sleep(50 * time.Millisecond),
-		cdp.WaitVisible("#ACHHcLIkD3", cdp.ByQuery),
-		cdp.Screenshot("#ACHHcLIkD3", picbuf, cdp.ByQuery),
+		cdp.Sleep(300 * time.Millisecond),
+		cdp.WaitVisible("ACHHcLIkD3", cdp.ByID),
+		cdp.Screenshot("ACHHcLIkD3", picbuf, cdp.ByID),
 	}
 }
 
@@ -117,13 +123,19 @@ func (f *ChromeObjectFactory) PassivateObject(o *commonPool.PooledObject) error 
 }
 
 func Init() {
-	cdpPool, err := cdp.NewPool( /* cdp.PoolLog(log.Printf, log.Printf, log.Printf),cdp.PortRange(6000, 6005) */ )
+	var cdpPool *chromedp.Pool
+	var err error
+	if constants.DebugMode {
+		cdpPool, err = cdp.NewPool(cdp.PoolLog(log.Printf, log.Printf, log.Printf), cdp.PortRange(50070, 50099))
+	} else {
+		cdpPool, err = cdp.NewPool(cdp.PortRange(50070, 50099))
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
 	cof := ChromeObjectFactory{CdpPool: cdpPool}
 	cPool = commonPool.NewObjectPoolWithDefaultConfig(&cof)
-	cPool.Config.MaxTotal = 4
+	cPool.Config.MaxTotal = 10
 }
 
 // Release all Chrome
