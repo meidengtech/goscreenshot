@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/knq/chromedp"
 
@@ -58,8 +57,8 @@ func screenshot(urlstr string, picbuf *[]byte, width int) cdp.Tasks {
 	return cdp.Tasks{
 		cdp.Navigate(urlstr),
 		setViewportAndScale(int64(width), 1600, 1.0),
-		cdp.Sleep(300 * time.Millisecond),
-		cdp.WaitVisible("ACHHcLIkD3", cdp.ByID),
+		//cdp.Sleep(500 * time.Millisecond),
+		cdp.WaitVisible("ImgLoadedFlagACHHcLIkD3", cdp.ByID),
 		cdp.Screenshot("ACHHcLIkD3", picbuf, cdp.ByID),
 	}
 }
