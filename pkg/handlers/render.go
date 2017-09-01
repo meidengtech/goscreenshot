@@ -11,7 +11,6 @@ import (
 	"github.com/sempr/goscreenshot/constants"
 	"github.com/sempr/goscreenshot/pkg/lru"
 	"github.com/sempr/goscreenshot/pkg/shot"
-	"log"
 )
 
 // RenderArgs xxx
@@ -128,7 +127,6 @@ table {
 <div id="ImgLoadedFlagACHHcLIkD3" style="display:none;">test</div>
 <div id="ACHHcLIkD3">
 `
-
 
 	wrappedHTML := wrappedHTMLBase + args.HTML
 	key := fmt.Sprintf("%d", randInt())
