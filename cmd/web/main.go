@@ -18,6 +18,7 @@ func prepareWeb() *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/html/{id:[0-9]+}", handlers.PageHandler)
 	r.HandleFunc("/render", handlers.RenderHandler)
+	r.HandleFunc("/", handlers.IndexHandler)
 	return r
 }
 

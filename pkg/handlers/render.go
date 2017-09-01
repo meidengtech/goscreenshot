@@ -24,6 +24,10 @@ func randInt() int {
 	return int(todaySecend)*1000 + rand.Intn(1000)
 }
 
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("hello world"))
+}
+
 // RenderHandler 是图片渲染的主入口
 func RenderHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
