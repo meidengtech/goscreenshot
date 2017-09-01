@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
+	//"html/template"
 
 	"github.com/gorilla/schema"
 	"github.com/sempr/goscreenshot/constants"
@@ -45,6 +46,8 @@ func RenderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//t, err := template.ParseFiles("../template/model.html")
+
 	wrappedHTMLBase := `<!DOCTYPE html>
 <html>
 <head>
@@ -57,6 +60,28 @@ func RenderHandler(w http.ResponseWriter, r *http.Request) {
 <div id="ACHHcLIkD3">
 %s
 </div>
+<div id="ImgLoadedFlagACHHcLIkD3" style="display:none;">test</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.removeEventListener("DOMContentLoaded", arguments.callee, false);
+        var imgs = document.getElementsByTagName("img");
+        var f = function() {
+            var complete = true;
+            for (var i = 0; i != imgs.length; i ++) {
+                if (!imgs[i].complete) {
+                    complete = false;
+                    break;
+                }
+            }
+            if (complete) {
+                document.getElementById('ImgLoadedFlagACHHcLIkD3').style.display = "block";
+            } else {
+                window.setTimeout(f);
+            }
+        };
+        f();
+    });
+</script>
 </body>
 </html>`
 	wrappedHTML := fmt.Sprintf(wrappedHTMLBase, constants.RESETCSS, args.HTML)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/knq/chromedp"
 
@@ -58,8 +57,8 @@ func screenshot(urlstr string, picbuf *[]byte, width int) cdp.Tasks {
 	return cdp.Tasks{
 		cdp.Navigate(urlstr),
 		setViewportAndScale(int64(width), 1600, 1.0),
-		cdp.Sleep(300 * time.Millisecond),
-		cdp.WaitVisible("ACHHcLIkD3", cdp.ByID),
+		//cdp.Sleep(500 * time.Millisecond),
+		cdp.WaitVisible("ImgLoadedFlagACHHcLIkD3", cdp.ByID),
 		cdp.Screenshot("ACHHcLIkD3", picbuf, cdp.ByID),
 	}
 }
@@ -123,6 +122,7 @@ func (f *ChromeObjectFactory) PassivateObject(o *commonPool.PooledObject) error 
 }
 
 func Init() {
+<<<<<<< HEAD
 	var cdpPool *chromedp.Pool
 	var err error
 	if constants.DebugMode {
@@ -130,6 +130,10 @@ func Init() {
 	} else {
 		cdpPool, err = cdp.NewPool(cdp.PortRange(50070, 50099))
 	}
+=======
+	// cdpPool, err := cdp.NewPool( /* cdp.PoolLog(log.Printf, log.Printf, log.Printf),cdp.PortRange(6000, 6005) */ )
+	cdpPool, err := cdp.NewPool(  cdp.PoolLog(log.Printf, log.Printf, log.Printf),cdp.PortRange(6000, 6050)  )
+>>>>>>> FIX:修复生成图片时有的图片会加载不完整的问题。
 	if err != nil {
 		log.Fatal(err)
 	}
