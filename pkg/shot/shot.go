@@ -122,7 +122,6 @@ func (f *ChromeObjectFactory) PassivateObject(o *commonPool.PooledObject) error 
 }
 
 func Init() {
-<<<<<<< HEAD
 	var cdpPool *chromedp.Pool
 	var err error
 	if constants.DebugMode {
@@ -130,10 +129,6 @@ func Init() {
 	} else {
 		cdpPool, err = cdp.NewPool(cdp.PortRange(50070, 50099))
 	}
-=======
-	// cdpPool, err := cdp.NewPool( /* cdp.PoolLog(log.Printf, log.Printf, log.Printf),cdp.PortRange(6000, 6005) */ )
-	cdpPool, err := cdp.NewPool(  cdp.PoolLog(log.Printf, log.Printf, log.Printf),cdp.PortRange(6000, 6050)  )
->>>>>>> FIX:修复生成图片时有的图片会加载不完整的问题。
 	if err != nil {
 		log.Fatal(err)
 	}
