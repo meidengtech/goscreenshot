@@ -1,4 +1,4 @@
-FROM golang:1.9 as builder
+FROM golang:1.11 as builder
 
 WORKDIR /go/src/github.com/sempr/goscreenshot/
 RUN set -xe
@@ -10,7 +10,7 @@ COPY constants/ ./constants
 COPY pkg/ ./pkg
 RUN go build -o /tmp/html2image github.com/sempr/goscreenshot/cmd/web
 
-FROM sempr/chrome-headless:62.0.3194.2-notofont
+FROM sempr/chrome-headless:latest-notofont
 ENV SCREENSHOT_CHROME_PATH /chrome/headless_shell
 COPY --from=builder /tmp/html2image /usr/bin/html2image
 ENTRYPOINT []

@@ -1,4 +1,4 @@
-FROM sempr/chrome-headless:62.0.3194.2
+FROM chromedp/headless-shell:latest
 
 MAINTAINER Sempr Wang <iamsempr@gmail.com>
 
