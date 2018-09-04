@@ -2,8 +2,8 @@ package shot
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"time"
 
 	"github.com/chromedp/chromedp"
 
@@ -33,26 +33,49 @@ func prepareChromeRes(ctxt context.Context, cPool *chromedp.Pool) (*chromedp.Res
 
 // Screenshot with url and width
 func (p *PooledShotter) Screenshot(url string, width int) ([]byte, error) {
-	var err error
-	cobj, err := p.cPool.BorrowObject(p.ctx)
-	if err != nil {
-		log.Panic(err)
-	}
-	defer p.cPool.ReturnObject(p.ctx, cobj)
-
-	o := cobj.(*ChromeObject)
-	ctxt := o.Ctxt
-	c := o.CdpRes
 	var picbuf []byte
-	err = c.Run(*ctxt, screenshot(url, &picbuf, width))
-	if err != nil {
-		return nil, err
+
+	oneTry := func() error {
+		cobj, err := p.cPool.BorrowObject(p.ctx)
+		if err != nil {
+			log.Panic(err)
+		}
+		defer p.cPool.ReturnObject(p.ctx, cobj)
+
+		o := cobj.(*ChromeObject)
+
+		c := o.CdpRes
+		ctxt, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+		defer cancel()
+
+		chanOk := make(chan bool)
+		go func() {
+			err = c.Run(ctxt, screenshot(url, &picbuf, width))
+			chanOk <- true
+		}()
+
+		select {
+		case <-ctxt.Done():
+			log.Println(ctxt.Err())
+			return ctxt.Err()
+		case <-chanOk:
+			log.Println("Done")
+			return nil
+		}
+	}
+
+	if err := oneTry(); err != nil {
+		log.Println("timeout: re-run")
+		if err := oneTry(); err != nil {
+			return nil, err
+		}
+		log.Println("timeout: re-ok")
 	}
 	return picbuf, nil
 }
 
 func screenshot(urlstr string, picbuf *[]byte, width int) chromedp.Tasks {
-	fmt.Println(urlstr)
+	log.Println(urlstr)
 	return chromedp.Tasks{
 		chromedp.Navigate(urlstr),
 		setViewportAndScale(int64(width), 1600, 1.0),
@@ -91,7 +114,9 @@ func (f *ChromeObjectFactory) MakeObject(ctxt context.Context) (*commonPool.Pool
 	if err != nil {
 		return nil, err
 	}
-	return commonPool.NewPooledObject(&ChromeObject{Ctxt: &ctxt, CdpRes: c, Count: 0}), nil
+
+	objectCtx := context.Background()
+	return commonPool.NewPooledObject(&ChromeObject{Ctxt: &objectCtx, CdpRes: c, Count: 0}), nil
 }
 
 // DestroyObject destroy an Object
@@ -143,11 +168,12 @@ func (p *PooledShotter) Init() {
 	p.ctx = context.Background()
 	cof := ChromeObjectFactory{CdpPool: cdpPool}
 	p.cPool = commonPool.NewObjectPoolWithDefaultConfig(p.ctx, &cof)
-	p.cPool.Config.MaxTotal = 3
+	p.cPool.Config.MaxTotal = 10
+	p.cPool.Config.MaxIdle = 3
 }
 
 // Release all Chrome
 func (p *PooledShotter) Release() {
-	fmt.Println("do release now")
+	log.Println("do release now")
 	p.cPool.Close(p.ctx)
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/sempr/goscreenshot/constants"
@@ -25,6 +26,7 @@ func handleSignal(s chan os.Signal, shot *shot.PooledShotter) {
 	sig := <-s
 	shot.Release()
 	fmt.Println(sig)
+	time.Sleep(3)
 	os.Exit(1)
 }
 
@@ -33,7 +35,7 @@ func main() {
 	signal.Notify(ch, os.Interrupt)
 
 	// 创建一组shot池
-	shot := shot.PooledShotter{DebugMode: true}
+	shot := shot.PooledShotter{DebugMode: false}
 	shot.Init()
 	go handleSignal(ch, &shot)
 	defer shot.Release()

@@ -127,7 +127,7 @@ table {
         f();
         window.setTimeout(function() {
         	document.getElementById('ImgLoadedFlagACHHcLIkD3').style.display = "block";
-        }, 5000);
+        }, 3000);
     });
 </script>
 <div id="ImgLoadedFlagACHHcLIkD3" style="display:none;">test</div>
