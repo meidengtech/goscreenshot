@@ -20,7 +20,7 @@ var ServerPort int
 var DebugMode bool
 
 func init() {
-	defaultChromePathDarwin := `/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary`
+	defaultChromePathDarwin := `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
 	defaultChromePathLinux := `/usr/bin/google-chrome-unstable`
 
 	var ok bool

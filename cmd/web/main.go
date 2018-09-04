@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/sempr/goscreenshot/constants"
@@ -17,15 +18,15 @@ import (
 func prepareWeb() *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/html/{id:[0-9]+}", handlers.PageHandler)
-	r.HandleFunc("/render", handlers.RenderHandler)
 	r.HandleFunc("/", handlers.IndexHandler)
 	return r
 }
 
-func handleSignal(s chan os.Signal) {
+func handleSignal(s chan os.Signal, shot *shot.PooledShotter) {
 	sig := <-s
-	fmt.Println(sig)
 	shot.Release()
+	fmt.Println(sig)
+	time.Sleep(3)
 	os.Exit(1)
 }
 
@@ -33,10 +34,18 @@ func main() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt)
 
-	go handleSignal(ch)
+	// 创建一组shot池
+	shot := shot.PooledShotter{DebugMode: false}
 	shot.Init()
+	go handleSignal(ch, &shot)
+	defer shot.Release()
 
 	mux := prepareWeb()
+
+	// 将shot app 加入
+	shotApp := handlers.ShotApp{Shot: &shot}
+	shotApp.AddRoutes(mux)
+
 	neg := negroni.Classic()
 	neg.UseHandler(mux)
 	portStr := fmt.Sprintf(":%d", constants.ServerPort)

@@ -1,16 +1,17 @@
-FROM sempr/chrome-headless:62.0.3194.2
+FROM chromedp/headless-shell:latest
 
 MAINTAINER Sempr Wang <iamsempr@gmail.com>
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -y && \
-  apt-get -y install unzip wget ca-certificates fontconfig xfonts-utils && \
-  mkdir -p  /usr/share/fonts/zhfonts/ && cd /usr/share/fonts/zhfonts/ && \
-  wget https://github.com/googlei18n/noto-cjk/raw/master/NotoSansCJKsc-Medium.otf && \
-  wget https://github.com/googlei18n/noto-cjk/raw/master/NotoSansCJKsc-Bold.otf && \
-  chmod 644 *.otf && mkfontscale && mkfontdir && fc-cache -fv && rm -rf /tmp/fonts/ && \
+  apt-get -y install fontconfig xfonts-utils && \
   rm -rf /var/lib/apt/lists/* /var/cache/apt/* 
+
+RUN mkdir -p  /usr/share/fonts/zhfonts/ && cd /usr/share/fonts/zhfonts/ && \
+  curl -O https://raw.githubusercontent.com/googlei18n/noto-cjk/master/NotoSansCJKsc-Medium.otf && \
+  curl -O https://raw.githubusercontent.com/googlei18n/noto-cjk/master/NotoSansCJKsc-Bold.otf && \
+  chmod 644 *.otf && mkfontscale && mkfontdir && fc-cache -fv && rm -rf /tmp/fonts/
 ENV CHROME_PATH /chrome/headless_shell
 ENV SCREENSHOT_CHROME_PATH /chrome/headless_shell
 

@@ -10,7 +10,7 @@ import (
 var SavedHTMLMap *lru.Cache
 
 func init() {
-	l, err := lru.New(256)
+	l, err := lru.New(4096)
 	if err != nil {
 		log.Fatal(err)
 	}
