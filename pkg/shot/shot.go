@@ -5,19 +5,17 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/knq/chromedp"
+	"github.com/chromedp/chromedp"
 
+	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/emulation"
+
+	"github.com/chromedp/chromedp/runner"
 	commonPool "github.com/jolestar/go-commons-pool"
-	cdp "github.com/knq/chromedp"
-	cdptypes "github.com/knq/chromedp/cdp"
-	"github.com/knq/chromedp/cdp/emulation"
-	"github.com/knq/chromedp/runner"
 	"github.com/sempr/goscreenshot/constants"
 )
 
-var cPool *commonPool.ObjectPool
-
-func prepareChromeRes(ctxt context.Context, cPool *cdp.Pool) (*cdp.Res, error) {
+func prepareChromeRes(ctxt context.Context, cPool *chromedp.Pool) (*chromedp.Res, error) {
 	c, err := cPool.Allocate(ctxt,
 		runner.Flag("headless", true),
 		runner.Flag("no-default-browser-check", true),
@@ -34,13 +32,14 @@ func prepareChromeRes(ctxt context.Context, cPool *cdp.Pool) (*cdp.Res, error) {
 }
 
 // Screenshot with url and width
-func Screenshot(url string, width int) ([]byte, error) {
+func (p *PooledShotter) Screenshot(url string, width int) ([]byte, error) {
 	var err error
-	cobj, err := cPool.BorrowObject()
+	cobj, err := p.cPool.BorrowObject(p.ctx)
 	if err != nil {
 		log.Panic(err)
 	}
-	defer cPool.ReturnObject(cobj)
+	defer p.cPool.ReturnObject(p.ctx, cobj)
+
 	o := cobj.(*ChromeObject)
 	ctxt := o.Ctxt
 	c := o.CdpRes
@@ -52,19 +51,18 @@ func Screenshot(url string, width int) ([]byte, error) {
 	return picbuf, nil
 }
 
-func screenshot(urlstr string, picbuf *[]byte, width int) cdp.Tasks {
+func screenshot(urlstr string, picbuf *[]byte, width int) chromedp.Tasks {
 	fmt.Println(urlstr)
-	return cdp.Tasks{
-		cdp.Navigate(urlstr),
+	return chromedp.Tasks{
+		chromedp.Navigate(urlstr),
 		setViewportAndScale(int64(width), 1600, 1.0),
-		//cdp.Sleep(500 * time.Millisecond),
-		cdp.WaitVisible("ImgLoadedFlagACHHcLIkD3", cdp.ByID),
-		cdp.Screenshot("ACHHcLIkD3", picbuf, cdp.ByID),
+		chromedp.WaitVisible("ImgLoadedFlagACHHcLIkD3", chromedp.ByID),
+		chromedp.Screenshot("ACHHcLIkD3", picbuf, chromedp.ByID),
 	}
 }
 
-func setViewportAndScale(w, h int64, scale float64) cdp.ActionFunc {
-	return func(ctxt context.Context, ha cdptypes.Handler) error {
+func setViewportAndScale(w, h int64, scale float64) chromedp.ActionFunc {
+	return func(ctxt context.Context, ha cdp.Executor) error {
 		sw, sh := int64(float64(w)/scale), int64(float64(h)/scale)
 		err := emulation.SetDeviceMetricsOverride(sw, sh, scale, false).WithScale(scale).Do(ctxt, ha)
 		if err != nil {
@@ -76,69 +74,80 @@ func setViewportAndScale(w, h int64, scale float64) cdp.ActionFunc {
 
 // ChromeObject for Pooled
 type ChromeObject struct {
-	Ctxt       *context.Context
-	CancleFunc *context.CancelFunc
-	CdpRes     *cdp.Res
-	Count      int
+	Ctxt   *context.Context
+	CdpRes *chromedp.Res
+	Count  int
 }
 
 // ChromeObjectFactory for Pooled
 type ChromeObjectFactory struct {
-	CdpPool *cdp.Pool
+	CdpPool *chromedp.Pool
 }
 
-func (f *ChromeObjectFactory) MakeObject() (*commonPool.PooledObject, error) {
-	ctxt, cancel := context.WithCancel(context.Background())
+// MakeObject make a new Object
+func (f *ChromeObjectFactory) MakeObject(ctxt context.Context) (*commonPool.PooledObject, error) {
+	log.Println("new chromeobject")
 	c, err := prepareChromeRes(ctxt, f.CdpPool)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
-	return commonPool.NewPooledObject(&ChromeObject{Ctxt: &ctxt, CancleFunc: &cancel, CdpRes: c, Count: 0}), nil
+	return commonPool.NewPooledObject(&ChromeObject{Ctxt: &ctxt, CdpRes: c, Count: 0}), nil
 }
 
-func (f *ChromeObjectFactory) DestroyObject(obj *commonPool.PooledObject) error {
-	fmt.Println("destroy chromeobject")
+// DestroyObject destroy an Object
+func (f *ChromeObjectFactory) DestroyObject(ctxt context.Context, obj *commonPool.PooledObject) error {
+	log.Println("destroy chromeobject")
 	o := obj.Object.(*ChromeObject)
 	o.CdpRes.Release()
-	(*o.CancleFunc)()
 	//do destroy
 	return nil
 }
 
-func (f *ChromeObjectFactory) ValidateObject(o *commonPool.PooledObject) bool {
+// ValidateObject check an Object valid
+func (f *ChromeObjectFactory) ValidateObject(ctxt context.Context, o *commonPool.PooledObject) bool {
 	//do validate
 	return true
 }
 
-func (f *ChromeObjectFactory) ActivateObject(o *commonPool.PooledObject) error {
+// ActivateObject make an object active
+func (f *ChromeObjectFactory) ActivateObject(ctxt context.Context, o *commonPool.PooledObject) error {
 	//do activate
 	return nil
 }
 
-func (f *ChromeObjectFactory) PassivateObject(o *commonPool.PooledObject) error {
+// PassivateObject make an object Passivate
+func (f *ChromeObjectFactory) PassivateObject(ctxt context.Context, o *commonPool.PooledObject) error {
 	//do passivate
 	return nil
 }
 
-func Init() {
+// PooledShotter is a PooledShotter Object
+type PooledShotter struct {
+	ctx       context.Context
+	cPool     *commonPool.ObjectPool
+	DebugMode bool
+}
+
+// Init chrome pool
+func (p *PooledShotter) Init() {
 	var cdpPool *chromedp.Pool
 	var err error
-	if constants.DebugMode {
-		cdpPool, err = cdp.NewPool(cdp.PoolLog(log.Printf, log.Printf, log.Printf), cdp.PortRange(50070, 50099))
+	if p.DebugMode {
+		cdpPool, err = chromedp.NewPool(chromedp.PoolLog(log.Printf, log.Printf, log.Printf), chromedp.PortRange(50100, 50199))
 	} else {
-		cdpPool, err = cdp.NewPool(cdp.PortRange(50070, 50099))
+		cdpPool, err = chromedp.NewPool(chromedp.PortRange(50100, 50199))
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
+	p.ctx = context.Background()
 	cof := ChromeObjectFactory{CdpPool: cdpPool}
-	cPool = commonPool.NewObjectPoolWithDefaultConfig(&cof)
-	cPool.Config.MaxTotal = 10
+	p.cPool = commonPool.NewObjectPoolWithDefaultConfig(p.ctx, &cof)
+	p.cPool.Config.MaxTotal = 3
 }
 
 // Release all Chrome
-func Release() {
+func (p *PooledShotter) Release() {
 	fmt.Println("do release now")
-	cPool.Close()
+	p.cPool.Close(p.ctx)
 }

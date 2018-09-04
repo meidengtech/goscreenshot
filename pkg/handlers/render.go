@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
-	//"html/template"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"github.com/sempr/goscreenshot/constants"
 	"github.com/sempr/goscreenshot/pkg/lru"
@@ -19,18 +19,24 @@ type RenderArgs struct {
 	HTML  string `schema:"html"`
 }
 
+// ShotApp holding the request and the shot object
+type ShotApp struct {
+	Shot *shot.PooledShotter
+}
+
 func randInt() int {
 	now := time.Now()
 	todaySecend := now.Unix() % 3600
-	return int(todaySecend)*1000 + rand.Intn(1000)
+	return int(todaySecend)*1000000 + rand.Intn(1000000)
 }
 
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("hello world"))
+// AddRoutes Add Routes
+func (app *ShotApp) AddRoutes(r *mux.Router) {
+	r.HandleFunc("/render", app.RenderHandler)
 }
 
 // RenderHandler 是图片渲染的主入口
-func RenderHandler(w http.ResponseWriter, r *http.Request) {
+func (app *ShotApp) RenderHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
 		fmt.Println(err)
@@ -135,7 +141,7 @@ table {
 	if args.Width > 2000 || args.Width < 10 {
 		args.Width = 750
 	}
-	picbuf, err := shot.Screenshot(pageURL, args.Width)
+	picbuf, err := app.Shot.Screenshot(pageURL, args.Width)
 	if err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
