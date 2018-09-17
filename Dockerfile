@@ -8,7 +8,7 @@ RUN go mod download
 COPY cmd/ ./cmd
 COPY constants/ ./constants
 COPY pkg/ ./pkg
-RUN GO111MODULE=on go build -o /tmp/html2image cmd/web/main.go
+RUN GO111MODULE=on go build -a -ldflags '-extldflags "-static"' -o /tmp/html2image cmd/web/main.go
 
 FROM sempr/chrome-headless:latest-notofont
 ENV SCREENSHOT_CHROME_PATH /headless-shell/headless-shell
