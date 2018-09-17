@@ -45,7 +45,7 @@ func (p *PooledShotter) Screenshot(url string, width int) ([]byte, error) {
 		o := cobj.(*ChromeObject)
 
 		c := o.CdpRes
-		ctxt, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+		ctxt, cancel := context.WithTimeout(p.ctx, time.Duration(3*time.Second))
 		defer cancel()
 
 		chanOk := make(chan bool)
@@ -115,8 +115,7 @@ func (f *ChromeObjectFactory) MakeObject(ctxt context.Context) (*commonPool.Pool
 		return nil, err
 	}
 
-	objectCtx := context.Background()
-	return commonPool.NewPooledObject(&ChromeObject{Ctxt: &objectCtx, CdpRes: c, Count: 0}), nil
+	return commonPool.NewPooledObject(&ChromeObject{Ctxt: &ctxt, CdpRes: c, Count: 0}), nil
 }
 
 // DestroyObject destroy an Object
