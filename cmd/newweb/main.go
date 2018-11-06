@@ -1,8 +1,14 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/chromedp/chromedp"
 	"github.com/gorilla/mux"
@@ -11,9 +17,25 @@ import (
 	"github.com/urfave/negroni"
 )
 
-type favContextKey string
+var (
+	NWorkers = flag.Int("n", 4, "The number of workers to start")
+	HTTPAddr = flag.String("http", "127.0.0.1:8000", "Address to listen for HTTP requests on")
+)
+
+func handleSignal(s chan os.Signal, shot *QueuedShotter) {
+	sig := <-s
+	shot.Stop()
+	fmt.Println(sig)
+	time.Sleep(3)
+	os.Exit(1)
+}
 
 func getApp() *negroni.Negroni {
+
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT)
+	signal.Notify(ch, syscall.SIGTERM)
+
 	customFormatter := new(logrus.TextFormatter)
 	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
 	log := logrus.New()
@@ -35,10 +57,9 @@ func getApp() *negroni.Negroni {
 		chromedp.PoolLog(log.Infof, log.Debugf, log.Errorf),
 		chromedp.PortRange(chromePortStart, chromePortEnd),
 	)
-	// object pool
-	// shot := PooledShotter2{cPool: p, log: log}
-	shot := QueuedShotter{cPool: p}
+	shot := QueuedShotter{cPool: p, workNum: *NWorkers}
 	shot.Start()
+	go handleSignal(ch, &shot)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,6 +77,7 @@ func getApp() *negroni.Negroni {
 }
 
 func main() {
+	flag.Parse()
 	neg := getApp()
 	log.Fatal(http.ListenAndServe(":8090", neg))
 }
