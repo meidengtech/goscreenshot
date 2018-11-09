@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
@@ -48,18 +49,16 @@ func NewWorker(id int, workerQueue chan chan WorkRequest, pt *devtool.Target) Wo
 func (w *Worker) Start() {
 	go func() {
 		for {
-			// Add ourselves into the worker queue.
 			w.WorkerQueue <- w.Work
-
 			select {
 			case work := <-w.Work:
 				// Receive a work request.
-				fmt.Printf("worker%d: Hello, %s!\n", w.ID, work.Name)
+				log.Printf("worker%d: Hello, %s!\n", w.ID, work.Name)
 				var picbuf []byte
 
-				picbuf, err := doScreenShot(context.TODO(), w.Pt, work.Name, work.Width)
+				picbuf, err := w.doScreenShot(context.TODO(), w.Pt, work.Name, work.Width)
 				if err != nil {
-					log.Fatal(err)
+					logrus.Panic(err)
 				}
 
 				wr := WorkResponse{picbuf, nil}
@@ -67,16 +66,13 @@ func (w *Worker) Start() {
 
 			case <-w.QuitChan:
 				// We have been asked to stop.
-				fmt.Printf("worker%d stopping\n", w.ID)
+				log.Printf("worker%d stopping\n", w.ID)
 				return
 			}
 		}
 	}()
 }
 
-// Stop tells the worker to stop listening for work requests.
-//
-// Note that the worker will only stop *after* it has finished its work.
 func (w *Worker) Stop() {
 	w.QuitChan <- true
 }
@@ -88,13 +84,14 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 	WorkerQueue = make(chan chan WorkRequest, nworkers)
 
 	// Now, create all of our workers.
+	log.Println(p.debugServer)
 	devt := devtool.New(p.debugServer)
 	p.devt = devt
 	for i := 0; i < nworkers; i++ {
-		fmt.Println("Starting worker", i+1)
-		pt, err := devt.Create(context.TODO())
+		log.Println("Starting worker", i+1)
+		pt, err := devt.CreateURL(context.TODO(), "about:blank")
 		if err != nil {
-			log.Fatal(err)
+			log.Panic(err)
 		}
 		worker := NewWorker(i+1, WorkerQueue, pt)
 		worker.Start()
@@ -105,11 +102,11 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 		for {
 			select {
 			case work := <-WorkQueue:
-				fmt.Println("Received work requeust")
+				log.Println("Received work requeust")
 				go func() {
 					worker := <-WorkerQueue
 
-					fmt.Println("Dispatching work request")
+					log.Println("Dispatching work request")
 					worker <- work
 				}()
 			}
@@ -123,6 +120,7 @@ type QueuedShotter struct {
 	workNum     int
 	workers     []Worker
 	debugServer string
+	log         *logrus.Logger
 }
 
 // Start 启动dispatcher
@@ -132,14 +130,14 @@ func (p *QueuedShotter) Start() {
 
 func (p *QueuedShotter) Stop() {
 	var wg sync.WaitGroup
-
 	for _, w := range p.workers {
-		fmt.Println("stop worker: ", w.ID)
+		log.Println("stop worker: ", w.ID)
 		wg.Add(1)
 		go func(nw Worker) {
-			p.devt.Close(context.TODO(), w.Pt)
+			log.Println("stopping worker: ", nw.ID)
+			p.devt.Close(context.TODO(), nw.Pt)
 			wg.Done()
-			fmt.Println("stopped worker: ", nw.ID)
+			log.Println("stopped worker: ", nw.ID)
 		}(w)
 	}
 	wg.Wait()
@@ -154,7 +152,7 @@ func (p *QueuedShotter) Do(ctxt1 context.Context, url string, width int) ([]byte
 	return response.Picbuf, response.Error
 }
 
-func doScreenShot(ctx context.Context, pt *devtool.Target, url string, width int) ([]byte, error) {
+func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url string, width int) ([]byte, error) {
 	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
 	if err != nil {
 		return nil, err
@@ -187,8 +185,7 @@ func doScreenShot(ctx context.Context, pt *devtool.Target, url string, width int
 		return nil, err
 	}
 
-	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
-
+	logrus.Infof("Page loaded with frame ID: %s\n", nav.FrameID)
 	// Fetch the document root node. We can pass nil here
 	// since this method only takes optional arguments.
 	doc, err := c.DOM.GetDocument(ctx, nil)
@@ -214,12 +211,12 @@ func doScreenShot(ctx context.Context, pt *devtool.Target, url string, width int
 	var vp *page.Viewport
 	for t := 0; t < 3000; t += step {
 		vp = getvp()
-		fmt.Println(vp)
+		logrus.Println(vp)
 		if vp.Y == 0 {
 			break
 		}
 	}
-	fmt.Println(vp)
+	log.Println(vp)
 	// Capture a screenshot of the current page.
 	screenshotArgs := page.NewCaptureScreenshotArgs().
 		SetClip(*vp).
