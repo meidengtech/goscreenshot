@@ -39,7 +39,8 @@ func getLog() *logrus.Logger {
 	return log
 }
 
-func getApp() *negroni.Negroni {
+func main() {
+
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT)
 	signal.Notify(ch, syscall.SIGTERM)
@@ -63,11 +64,6 @@ func getApp() *negroni.Negroni {
 
 	neg := negroni.Classic()
 	neg.UseHandler(r)
-	return neg
-}
 
-func main() {
-	flag.Parse()
-	neg := getApp()
 	logrus.Fatal(http.ListenAndServe(":8090", neg))
 }
