@@ -65,17 +65,17 @@ table {
                 }
             }
             if (complete) {
-                document.getElementById('ImgLoadedFlagACHHcLIkD3').style.display = "block";
+                document.getElementById('ImgLoadedFlagACHHcLIkD3').style.display = "none";
             } else {
-                window.setTimeout(f, 5);
+                window.setTimeout(f, 20);
             }
         };
         f();
         window.setTimeout(function() {
-        	document.getElementById('ImgLoadedFlagACHHcLIkD3').style.display = "block";
+        	document.getElementById('ImgLoadedFlagACHHcLIkD3').style.display = "none";
         }, 3000);
     });
 </script>
-<div id="ImgLoadedFlagACHHcLIkD3" style="display:none;">test</div>
+<div id="ImgLoadedFlagACHHcLIkD3" style="display:display;">.</div>
 <div id="ACHHcLIkD3">
 `

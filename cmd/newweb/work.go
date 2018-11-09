@@ -3,14 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
-	"github.com/chromedp/chromedp"
-	"github.com/chromedp/chromedp/runner"
+	"github.com/mafredri/cdp"
+	"github.com/mafredri/cdp/devtool"
+	"github.com/mafredri/cdp/protocol/dom"
+	"github.com/mafredri/cdp/protocol/page"
+	"github.com/mafredri/cdp/rpcc"
 )
 
 type WorkRequest struct {
 	Name     string
+	Width    int
 	Response chan WorkResponse
 }
 
@@ -24,17 +29,17 @@ type Worker struct {
 	Work        chan WorkRequest
 	WorkerQueue chan chan WorkRequest
 	QuitChan    chan bool
-	CdpRes      *chromedp.Res
+	Pt          *devtool.Target
 }
 
-func NewWorker(id int, workerQueue chan chan WorkRequest, cdpRes *chromedp.Res) Worker {
+func NewWorker(id int, workerQueue chan chan WorkRequest, pt *devtool.Target) Worker {
 	// Create, and return the worker.
 	worker := Worker{
 		ID:          id,
 		Work:        make(chan WorkRequest),
 		WorkerQueue: workerQueue,
 		QuitChan:    make(chan bool),
-		CdpRes:      cdpRes,
+		Pt:          pt,
 	}
 
 	return worker
@@ -51,7 +56,12 @@ func (w *Worker) Start() {
 				// Receive a work request.
 				fmt.Printf("worker%d: Hello, %s!\n", w.ID, work.Name)
 				var picbuf []byte
-				w.CdpRes.Run(context.TODO(), screenshot(work.Name, &picbuf, 750))
+
+				picbuf, err := doScreenShot(context.TODO(), w.Pt, work.Name, work.Width)
+				if err != nil {
+					log.Fatal(err)
+				}
+
 				wr := WorkResponse{picbuf, nil}
 				work.Response <- wr
 
@@ -69,7 +79,6 @@ func (w *Worker) Start() {
 // Note that the worker will only stop *after* it has finished its work.
 func (w *Worker) Stop() {
 	w.QuitChan <- true
-	w.CdpRes.Release()
 }
 
 var WorkerQueue chan chan WorkRequest
@@ -79,17 +88,15 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 	WorkerQueue = make(chan chan WorkRequest, nworkers)
 
 	// Now, create all of our workers.
+	devt := devtool.New(p.debugServer)
+	p.devt = devt
 	for i := 0; i < nworkers; i++ {
 		fmt.Println("Starting worker", i+1)
-		// TODO: enable chromedp
-		cdpRes, _ := p.cPool.Allocate(context.TODO(),
-			runner.Flag("headless", true),
-			runner.Flag("no-default-browser-check", true),
-			runner.Flag("no-first-run", true),
-			runner.Flag("disable-gpu", true),
-			runner.Flag("no-sandbox", true))
-
-		worker := NewWorker(i+1, WorkerQueue, cdpRes)
+		pt, err := devt.Create(context.TODO())
+		if err != nil {
+			log.Fatal(err)
+		}
+		worker := NewWorker(i+1, WorkerQueue, pt)
 		worker.Start()
 		p.workers = append(p.workers, worker)
 	}
@@ -112,9 +119,10 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 
 // QueuedShotter xxx
 type QueuedShotter struct {
-	cPool   *chromedp.Pool
-	workNum int
-	workers []Worker
+	devt        *devtool.DevTools
+	workNum     int
+	workers     []Worker
+	debugServer string
 }
 
 // Start 启动dispatcher
@@ -129,7 +137,7 @@ func (p *QueuedShotter) Stop() {
 		fmt.Println("stop worker: ", w.ID)
 		wg.Add(1)
 		go func(nw Worker) {
-			nw.Stop()
+			p.devt.Close(context.TODO(), w.Pt)
 			wg.Done()
 			fmt.Println("stopped worker: ", nw.ID)
 		}(w)
@@ -140,8 +148,85 @@ func (p *QueuedShotter) Stop() {
 // Do xxx
 func (p *QueuedShotter) Do(ctxt1 context.Context, url string, width int) ([]byte, error) {
 	resp := make(chan WorkResponse)
-	work := WorkRequest{Name: url, Response: resp}
+	work := WorkRequest{Name: url, Response: resp, Width: width}
 	WorkQueue <- work
 	response := <-resp
 	return response.Picbuf, response.Error
+}
+
+func doScreenShot(ctx context.Context, pt *devtool.Target, url string, width int) ([]byte, error) {
+	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close() // Leaving connections open will leak memory.
+
+	c := cdp.NewClient(conn)
+	// Open a DOMContentEventFired client to buffer this event.
+	domContent, err := c.Page.DOMContentEventFired(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer domContent.Close()
+
+	// Enable events on the Page domain, it's often preferrable to create
+	// event clients before enabling events so that we don't miss any.
+	if err = c.Page.Enable(ctx); err != nil {
+		return nil, err
+	}
+
+	// Create the Navigate arguments with the optional Referrer field set.
+	navArgs := page.NewNavigateArgs(url)
+	nav, err := c.Page.Navigate(ctx, navArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait until we have a DOMContentEventFired event.
+	if _, err = domContent.Recv(); err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
+
+	// Fetch the document root node. We can pass nil here
+	// since this method only takes optional arguments.
+	doc, err := c.DOM.GetDocument(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	getvp := func() *page.Viewport {
+		doc2, _ := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{NodeID: doc.Root.NodeID, Selector: "#ACHHcLIkD3"})
+		c.DOM.SetAttributeValue(ctx, &dom.SetAttributeValueArgs{NodeID: doc2.NodeID, Name: "style", Value: fmt.Sprintf("width: %dpx", width)})
+		rect, _ := c.DOM.GetBoxModel(ctx, &dom.GetBoxModelArgs{NodeID: &doc2.NodeID})
+
+		vp := page.Viewport{
+			X:      rect.Model.Content[0],
+			Y:      rect.Model.Content[1],
+			Width:  float64(rect.Model.Width),
+			Height: float64(rect.Model.Height),
+			Scale:  1.0,
+		}
+		return &vp
+	}
+	step := 20
+	var vp *page.Viewport
+	for t := 0; t < 3000; t += step {
+		vp = getvp()
+		fmt.Println(vp)
+		if vp.Y == 0 {
+			break
+		}
+	}
+	fmt.Println(vp)
+	// Capture a screenshot of the current page.
+	screenshotArgs := page.NewCaptureScreenshotArgs().
+		SetClip(*vp).
+		SetFormat("jpeg").SetQuality(80)
+	screenshot, err := c.Page.CaptureScreenshot(ctx, screenshotArgs)
+	if err != nil {
+		return nil, err
+	}
+	return screenshot.Data, err
 }

@@ -40,35 +40,37 @@ type renderArgs struct {
 func (a *app) Render(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		fmt.Println(err)
+		a.log.Errorln(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, err)
 		return
 	}
 	var args = new(renderArgs)
 	decoder := schema.NewDecoder()
 	err = decoder.Decode(args, r.Form)
 	if err != nil {
-		fmt.Println(err)
+		a.log.Errorln(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, err)
 		return
 	}
-	a.log.Errorln(args.HTML, args.Width)
+	a.log.Debugln(args.HTML, args.Width)
 	key := fmt.Sprintf("%d", rand.Intn(1000000))
+
 	a.lru.Add(key, args.HTML)
-	fmt.Println(key)
 	pageURL := fmt.Sprintf("http://127.0.0.1:8090/html/%s", key)
 	fmt.Println(pageURL)
 	if args.Width > 2000 || args.Width < 10 {
 		args.Width = 750
 	}
-	fmt.Println("start screenshot")
+	a.log.Debug("start screenshot")
 	picbuf, err := a.shot.Do(context.TODO(), pageURL, args.Width)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, err)
 		return
 	}
-	w.Header().Set("content-type", "image/png")
+	w.Header().Set("content-type", "image/jpeg")
 	w.Header().Set("content-length", fmt.Sprintf("%d", len(picbuf)))
 	w.Write(picbuf)
 }
