@@ -59,7 +59,7 @@ func (a *app) Render(w http.ResponseWriter, r *http.Request) {
 	key := fmt.Sprintf("%d", rand.Intn(1000000))
 
 	a.lru.Add(key, args.HTML)
-	pageURL := fmt.Sprintf("http://127.0.0.1:%d/html/%s", port, key)
+	pageURL := fmt.Sprintf("http://127.0.0.1:%d/html/%s", a.port, key)
 	fmt.Println(pageURL)
 	if args.Width > 2000 || args.Width < 10 {
 		args.Width = 750

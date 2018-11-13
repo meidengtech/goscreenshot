@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -209,6 +210,7 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 		if vp.Y == 0 {
 			break
 		}
+		time.Sleep(time.Millisecond * time.Duration(step))
 	}
 	log.Println(vp)
 	// Capture a screenshot of the current page.

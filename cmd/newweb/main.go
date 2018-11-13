@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	nWorkers     = flag.Int("n", 8, "The number of workers to start")
+	nWorkers     = flag.Int("n", 4, "The number of workers to start")
 	port         = flag.Int("p", 8080, "The port of the http server")
 	chromeServer = flag.String("chromeServer", "http://127.0.0.1:9222", "The port of the debug server")
 )
@@ -59,7 +59,8 @@ func main() {
 	shot.StartDispatcher(*nWorkers)
 
 	go handleSignal(ch, &shot)
-	a := app{shot: &shot, lru: l, log: log}
+	fmt.Println(*port)
+	a := app{shot: &shot, lru: l, log: log, port: *port}
 
 	r := mux.NewRouter()
 	r.HandleFunc("/html/{id:[0-9]+}", a.ContentPage)
@@ -69,6 +70,6 @@ func main() {
 	neg := negroni.Classic()
 	neg.UseHandler(r)
 
-	portStr := fmt.Sprintf("0.0.0.0:%d", port)
+	portStr := fmt.Sprintf("0.0.0.0:%d", *port)
 	logrus.Fatal(http.ListenAndServe(portStr, neg))
 }
