@@ -5,9 +5,6 @@ sleep 3
 
 CMD="$@"
 
-echo $CMD
-echo $@
-
 if [[ "$CMD" == "" ]]; then
     CMD=/usr/bin/html2image
 fi

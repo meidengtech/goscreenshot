@@ -12,6 +12,6 @@ FROM sempr/chrome-headless:latest-notofont
 ENV SCREENSHOT_CHROME_PATH /headless-shell/headless-shell
 COPY --from=builder /tmp/html2image /usr/bin/html2image
 ADD entrypoint.sh /entrypoint.sh
-ENTRYPOINT /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 USER root
 EXPOSE 8080
