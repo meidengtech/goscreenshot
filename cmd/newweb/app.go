@@ -16,6 +16,7 @@ type app struct {
 	shot IShot
 	lru  *lru.Cache
 	log  *logrus.Logger
+	port int
 }
 
 func (a *app) IndexPage(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +59,7 @@ func (a *app) Render(w http.ResponseWriter, r *http.Request) {
 	key := fmt.Sprintf("%d", rand.Intn(1000000))
 
 	a.lru.Add(key, args.HTML)
-	pageURL := fmt.Sprintf("http://127.0.0.1:8090/html/%s", key)
+	pageURL := fmt.Sprintf("http://127.0.0.1:%d/html/%s", port, key)
 	fmt.Println(pageURL)
 	if args.Width > 2000 || args.Width < 10 {
 		args.Width = 750

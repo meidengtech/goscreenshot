@@ -84,8 +84,8 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 	WorkerQueue = make(chan chan WorkRequest, nworkers)
 
 	// Now, create all of our workers.
-	log.Println(p.debugServer)
-	devt := devtool.New(p.debugServer)
+	log.Println(p.chromeServer)
+	devt := devtool.New(p.chromeServer)
 	p.devt = devt
 	for i := 0; i < nworkers; i++ {
 		log.Println("Starting worker", i+1)
@@ -116,10 +116,10 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 
 // QueuedShotter xxx
 type QueuedShotter struct {
-	devt        *devtool.DevTools
-	workers     []Worker
-	debugServer string
-	log         *logrus.Logger
+	devt         *devtool.DevTools
+	workers      []Worker
+	chromeServer string
+	log          *logrus.Logger
 }
 
 func (p *QueuedShotter) Stop() {

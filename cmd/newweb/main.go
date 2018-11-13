@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,9 +16,9 @@ import (
 )
 
 var (
-	nWorkers    = flag.Int("n", 8, "The number of workers to start")
-	port        = flag.Int("p", 8090, "The port of the http server")
-	debugServer = flag.String("debugAddr", "http://127.0.0.1:9222", "The port of the debug server")
+	nWorkers     = flag.Int("n", 8, "The number of workers to start")
+	port         = flag.Int("p", 8080, "The port of the http server")
+	chromeServer = flag.String("chromeServer", "http://127.0.0.1:9222", "The port of the debug server")
 )
 
 var log *logrus.Logger
@@ -54,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	shot := QueuedShotter{debugServer: *debugServer, log: log}
+	shot := QueuedShotter{chromeServer: *chromeServer, log: log}
 	shot.StartDispatcher(*nWorkers)
 
 	go handleSignal(ch, &shot)
@@ -67,5 +68,7 @@ func main() {
 
 	neg := negroni.Classic()
 	neg.UseHandler(r)
-	logrus.Fatal(http.ListenAndServe(":8090", neg))
+
+	portStr := fmt.Sprintf("0.0.0.0:%d", port)
+	logrus.Fatal(http.ListenAndServe(portStr, neg))
 }
