@@ -117,15 +117,9 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 // QueuedShotter xxx
 type QueuedShotter struct {
 	devt        *devtool.DevTools
-	workNum     int
 	workers     []Worker
 	debugServer string
 	log         *logrus.Logger
-}
-
-// Start 启动dispatcher
-func (p *QueuedShotter) Start() {
-	p.StartDispatcher(p.workNum)
 }
 
 func (p *QueuedShotter) Stop() {

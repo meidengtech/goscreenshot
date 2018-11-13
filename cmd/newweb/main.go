@@ -23,7 +23,8 @@ var (
 var log *logrus.Logger
 
 func handleSignal(s chan os.Signal, shot *QueuedShotter) {
-	<-s
+	sig := <-s
+	log.Info("got signal: ", sig)
 	shot.Stop()
 	time.Sleep(3)
 	os.Exit(0)
@@ -53,7 +54,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	shot := QueuedShotter{workNum: *nWorkers, debugServer: *debugServer, log: log}
+	shot := QueuedShotter{debugServer: *debugServer, log: log}
 	shot.StartDispatcher(*nWorkers)
 
 	go handleSignal(ch, &shot)
