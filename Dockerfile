@@ -13,5 +13,6 @@ ENV SCREENSHOT_CHROME_PATH /headless-shell/headless-shell
 COPY --from=builder /tmp/html2image /usr/bin/html2image
 ADD entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
+HEALTHCHECK --interval=60s --timeout=3s CMD curl -fs http://localhost:9222 && curl -fs http://localhost:8080 || exit 1
 USER root
 EXPOSE 8080
