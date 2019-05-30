@@ -1,3 +1,5 @@
 vendor/
 .git/
 web
+.idea/*
+.vscode/*

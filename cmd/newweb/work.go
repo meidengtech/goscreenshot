@@ -19,6 +19,7 @@ type WorkRequest struct {
 	Name     string
 	Width    int
 	Response chan WorkResponse
+	Ctx      context.Context
 }
 
 type WorkResponse struct {
@@ -47,27 +48,34 @@ func NewWorker(id int, workerQueue chan chan WorkRequest, pt *devtool.Target) Wo
 	return worker
 }
 
+func (w *Worker) Printf(format string, args ...interface{}) {
+    log.Printf(fmt.Sprintf("Worker%d: %s", w.ID, format), args)
+}
+
 func (w *Worker) Start() {
 	go func() {
 		for {
+			w.Printf("Ready to work!\n")
 			w.WorkerQueue <- w.Work
 			select {
 			case work := <-w.Work:
 				// Receive a work request.
-				log.Printf("worker%d: Hello, %s!\n", w.ID, work.Name)
+				w.Printf("Received job %s.\n", work.Name)
 				var picbuf []byte
 
-				picbuf, err := w.doScreenShot(context.TODO(), w.Pt, work.Name, work.Width)
+				picbuf, err := w.doScreenShot(work.Ctx, w.Pt, work.Name, work.Width)
+				w.Printf("Finished job %s!\n", work.Name)
 				if err != nil {
-					logrus.Panic(err)
+					wr := WorkResponse{nil, err}
+					work.Response <- wr
+				} else {
+					wr := WorkResponse{picbuf, nil}
+					work.Response <- wr
 				}
-
-				wr := WorkResponse{picbuf, nil}
-				work.Response <- wr
 
 			case <-w.QuitChan:
 				// We have been asked to stop.
-				log.Printf("worker%d stopping\n", w.ID)
+				w.Printf("Stopping\n")
 				return
 			}
 		}
@@ -101,16 +109,14 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 
 	go func() {
 		for {
-			select {
-			case work := <-WorkQueue:
-				log.Println("Received work requeust")
-				go func() {
-					worker := <-WorkerQueue
+			work := <-WorkQueue
+			log.Println("Received work requeust" + work.Name)
+			go func() {
+				worker := <-WorkerQueue
 
-					log.Println("Dispatching work request")
-					worker <- work
-				}()
-			}
+				log.Println("Dispatching work request")
+				worker <- work
+			}()
 		}
 	}()
 }
@@ -139,11 +145,13 @@ func (p *QueuedShotter) Stop() {
 }
 
 // Do xxx
-func (p *QueuedShotter) Do(ctxt1 context.Context, url string, width int) ([]byte, error) {
+func (p *QueuedShotter) Do(ctx context.Context, url string, width int) ([]byte, error) {
 	resp := make(chan WorkResponse)
-	work := WorkRequest{Name: url, Response: resp, Width: width}
+	work := WorkRequest{Name: url, Response: resp, Width: width, Ctx: ctx}
+	log.Infof("Append job %s to chan\n", url)
 	WorkQueue <- work
 	response := <-resp
+	log.Infof("Job %s finished\n", url)
 	return response.Picbuf, response.Error
 }
 
@@ -156,6 +164,7 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 
 	c := cdp.NewClient(conn)
 	// Open a DOMContentEventFired client to buffer this event.
+	w.Printf("Open a DOMContentEventFired client to buffer this event.")
 	domContent, err := c.Page.DOMContentEventFired(ctx)
 	if err != nil {
 		return nil, err
@@ -164,11 +173,13 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 
 	// Enable events on the Page domain, it's often preferrable to create
 	// event clients before enabling events so that we don't miss any.
+	w.Printf("Enable events on the Page domain.")
 	if err = c.Page.Enable(ctx); err != nil {
 		return nil, err
 	}
 
 	// Create the Navigate arguments with the optional Referrer field set.
+	w.Printf("Create the Navigate arguments with the optional Referrer field set.")
 	navArgs := page.NewNavigateArgs(url)
 	nav, err := c.Page.Navigate(ctx, navArgs)
 	if err != nil {
@@ -176,11 +187,12 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 	}
 
 	// Wait until we have a DOMContentEventFired event.
+	w.Printf("Wait until we have a DOMContentEventFired event.")
 	if _, err = domContent.Recv(); err != nil {
 		return nil, err
 	}
 
-	logrus.Infof("Page loaded with frame ID: %s\n", nav.FrameID)
+	w.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
 	// Fetch the document root node. We can pass nil here
 	// since this method only takes optional arguments.
 	doc, err := c.DOM.GetDocument(ctx, nil)
@@ -188,10 +200,17 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 		return nil, err
 	}
 
-	getvp := func() *page.Viewport {
-		doc2, _ := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{NodeID: doc.Root.NodeID, Selector: "#ACHHcLIkD3"})
+	getvp := func() (*page.Viewport, error) {
+		doc2, err := c.DOM.QuerySelector(ctx, &dom.QuerySelectorArgs{NodeID: doc.Root.NodeID, Selector: "#ACHHcLIkD3"})
+		if err != nil {
+			return nil, err
+		}
+
 		c.DOM.SetAttributeValue(ctx, &dom.SetAttributeValueArgs{NodeID: doc2.NodeID, Name: "style", Value: fmt.Sprintf("width: %dpx", width)})
-		rect, _ := c.DOM.GetBoxModel(ctx, &dom.GetBoxModelArgs{NodeID: &doc2.NodeID})
+		rect, err2 := c.DOM.GetBoxModel(ctx, &dom.GetBoxModelArgs{NodeID: &doc2.NodeID})
+		if err2 != nil {
+			return nil, err2
+		}
 
 		vp := page.Viewport{
 			X:      rect.Model.Content[0],
@@ -200,16 +219,18 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 			Height: float64(rect.Model.Height),
 			Scale:  1.0,
 		}
-		return &vp
+		return &vp, nil
 	}
-	step := 20
 	var vp *page.Viewport
-	for t := 0; t < 3000; t += step {
-		vp = getvp()
-		logrus.Println(vp)
+	for step := 1; step < 3000; step *= 2 {
+		vp, err = getvp()
+		if err != nil {
+			return nil, err
+		}
 		if vp.Y == 0 {
 			break
 		}
+		w.Printf("Sleeping %dms.\n", step)
 		time.Sleep(time.Millisecond * time.Duration(step))
 	}
 	log.Println(vp)
