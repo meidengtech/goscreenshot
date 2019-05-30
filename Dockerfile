@@ -8,11 +8,11 @@ RUN go mod download
 COPY cmd/ ./cmd
 RUN GO111MODULE=on go build -a -ldflags '-extldflags "-static"' -o /tmp/html2image ./cmd/newweb
 
-FROM sempr/chrome-headless:latest-notofont
+FROM sempr/chrome-headless:20190531-notofont
 ENV SCREENSHOT_CHROME_PATH /headless-shell/headless-shell
 COPY --from=builder /tmp/html2image /usr/bin/html2image
 ADD entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-HEALTHCHECK --interval=15s --timeout=3s CMD curl -fs http://localhost:9222 && curl -fs http://localhost:8080 || exit 1
+HEALTHCHECK --interval=15s --timeout=3s CMD curl -fs http://localhost:9222 && curl -fs -m 2 -o /dev/null "http://localhost:8080/render?width=300&html=abc" || kill -15 1
 USER root
 EXPOSE 8080

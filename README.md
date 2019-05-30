@@ -23,7 +23,7 @@ docker build -t html2image .
 ```
 
 ```
-docker run -ti --rm -p 10070:8080 html2image
+docker run -ti --restart=always -p 10070:8080 html2image
 ```
 
 ### 访问本服务

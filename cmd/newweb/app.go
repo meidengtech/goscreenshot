@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
@@ -55,7 +56,7 @@ func (a *app) Render(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, err)
 		return
 	}
-	a.log.Debugln(args.HTML, args.Width)
+	a.log.Infof("Received: html %s width %d\n.", args.HTML, args.Width)
 	key := fmt.Sprintf("%d", rand.Intn(1000000))
 
 	a.lru.Add(key, args.HTML)
@@ -65,12 +66,18 @@ func (a *app) Render(w http.ResponseWriter, r *http.Request) {
 		args.Width = 750
 	}
 	a.log.Debug("start screenshot")
-	picbuf, err := a.shot.Do(context.TODO(), pageURL, args.Width)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	picbuf, err := a.shot.Do(ctx, pageURL, args.Width)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+        a.log.Infof("Failed: html %s width %d\n.", args.HTML, args.Width)
+		a.log.Error(err)
 		fmt.Fprintln(w, err)
 		return
 	}
+	a.log.Infof("Succeed: html %s width %d\n.", args.HTML, args.Width)
 	w.Header().Set("content-type", "image/jpeg")
 	w.Header().Set("content-length", fmt.Sprintf("%d", len(picbuf)))
 	w.Write(picbuf)
