@@ -30,12 +30,12 @@ type WorkResponse struct {
 type Worker struct {
 	ID          int
 	Work        chan WorkRequest
-	WorkerQueue chan chan WorkRequest
+	WorkerQueue chan *Worker
 	QuitChan    chan bool
 	Pt          *devtool.Target
 }
 
-func NewWorker(id int, workerQueue chan chan WorkRequest, pt *devtool.Target) Worker {
+func NewWorker(id int, workerQueue chan *Worker, pt *devtool.Target) Worker {
 	// Create, and return the worker.
 	worker := Worker{
 		ID:          id,
@@ -49,22 +49,22 @@ func NewWorker(id int, workerQueue chan chan WorkRequest, pt *devtool.Target) Wo
 }
 
 func (w *Worker) Printf(format string, args ...interface{}) {
-    log.Printf(fmt.Sprintf("Worker%d: %s", w.ID, format), args)
+    log.Printf(fmt.Sprintf("Worker%d: %s", w.ID, format), args...)
 }
 
 func (w *Worker) Start() {
 	go func() {
 		for {
-			w.Printf("Ready to work!\n")
-			w.WorkerQueue <- w.Work
+			w.Printf("Ready to work!")
+			w.WorkerQueue <- w
 			select {
 			case work := <-w.Work:
 				// Receive a work request.
-				w.Printf("Received job %s.\n", work.Name)
+				w.Printf("Received job %s.", work.Name)
 				var picbuf []byte
 
 				picbuf, err := w.doScreenShot(work.Ctx, w.Pt, work.Name, work.Width)
-				w.Printf("Finished job %s!\n", work.Name)
+				w.Printf("Finished job %s!", work.Name)
 				if err != nil {
 					wr := WorkResponse{nil, err}
 					work.Response <- wr
@@ -75,7 +75,7 @@ func (w *Worker) Start() {
 
 			case <-w.QuitChan:
 				// We have been asked to stop.
-				w.Printf("Stopping\n")
+				w.Printf("Stopping")
 				return
 			}
 		}
@@ -86,11 +86,11 @@ func (w *Worker) Stop() {
 	w.QuitChan <- true
 }
 
-var WorkerQueue chan chan WorkRequest
+var WorkerQueue chan *Worker
 var WorkQueue = make(chan WorkRequest, 100)
 
 func (p *QueuedShotter) StartDispatcher(nworkers int) {
-	WorkerQueue = make(chan chan WorkRequest, nworkers)
+	WorkerQueue = make(chan *Worker, nworkers)
 
 	// Now, create all of our workers.
 	log.Println(p.chromeServer)
@@ -115,7 +115,7 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 				worker := <-WorkerQueue
 
 				log.Println("Dispatching work request")
-				worker <- work
+				worker.Work <- work
 			}()
 		}
 	}()
@@ -148,10 +148,10 @@ func (p *QueuedShotter) Stop() {
 func (p *QueuedShotter) Do(ctx context.Context, url string, width int) ([]byte, error) {
 	resp := make(chan WorkResponse)
 	work := WorkRequest{Name: url, Response: resp, Width: width, Ctx: ctx}
-	log.Infof("Append job %s to chan\n", url)
+	log.Infof("Append job %s to chan", url)
 	WorkQueue <- work
 	response := <-resp
-	log.Infof("Job %s finished\n", url)
+	log.Infof("Job %s finished", url)
 	return response.Picbuf, response.Error
 }
 
@@ -192,7 +192,7 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 		return nil, err
 	}
 
-	w.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
+	w.Printf("Page loaded with frame ID: %s", nav.FrameID)
 	// Fetch the document root node. We can pass nil here
 	// since this method only takes optional arguments.
 	doc, err := c.DOM.GetDocument(ctx, nil)
@@ -230,10 +230,10 @@ func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url strin
 		if vp.Y == 0 {
 			break
 		}
-		w.Printf("Sleeping %dms.\n", step)
+		w.Printf("Sleeping %dms.", step)
 		time.Sleep(time.Millisecond * time.Duration(step))
 	}
-	log.Println(vp)
+	w.Printf("%+v", vp)
 	// Capture a screenshot of the current page.
 	screenshotArgs := page.NewCaptureScreenshotArgs().
 		SetClip(*vp).
