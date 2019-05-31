@@ -2,6 +2,7 @@ FROM chromedp/headless-shell:latest
 
 MAINTAINER Sempr Wang <iamsempr@gmail.com>
 
+LABEL minkernelversion=3.10
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -y && \
