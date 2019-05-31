@@ -66,6 +66,7 @@ func main() {
 	r.HandleFunc("/html/{id:[0-9]+}", a.ContentPage)
 	r.HandleFunc("/", a.IndexPage)
 	r.HandleFunc("/render", a.Render)
+	r.HandleFunc("/stat", a.Stat)
 
 	neg := negroni.Classic()
 	neg.UseHandler(r)

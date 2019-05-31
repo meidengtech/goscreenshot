@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,11 +16,33 @@ import (
 	"github.com/mafredri/cdp/rpcc"
 )
 
+type WorkInfo struct {
+    TimeCreate string
+    TimeStart  string
+    TimeEnd    string
+    Logs       []string
+}
+
 type WorkRequest struct {
 	Name     string
+	Html     string
 	Width    int
 	Response chan WorkResponse
 	Ctx      context.Context
+	Info     WorkInfo
+}
+
+func NewWorkRequest(id string, response chan WorkResponse, html string, width int, ctx context.Context) WorkRequest {
+	request := WorkRequest{
+		Name:     id,
+		Html:     html,
+		Width:    width,
+		Response: response,
+		Ctx:      ctx,
+	}
+	request.Info.TimeCreate = time.Now().String()
+
+	return request
 }
 
 type WorkResponse struct {
@@ -33,6 +56,7 @@ type Worker struct {
 	WorkerQueue chan *Worker
 	QuitChan    chan bool
 	Pt          *devtool.Target
+	LastWork    WorkRequest
 }
 
 func NewWorker(id int, workerQueue chan *Worker, pt *devtool.Target) Worker {
@@ -48,8 +72,34 @@ func NewWorker(id int, workerQueue chan *Worker, pt *devtool.Target) Worker {
 	return worker
 }
 
+func (w *Worker) Json() string {
+    var builder strings.Builder
+    fmt.Fprintln(&builder, "\t{")
+    fmt.Fprintf(&builder, "\t\t\"ID\": %d,\n", w.ID)
+    fmt.Fprintf(&builder, "\t\t\"LastWork\": {\n")
+    fmt.Fprintf(&builder, "\t\t\t\"Name\": \"%s\",\n", w.LastWork.Name)
+    fmt.Fprintf(&builder, "\t\t\t\"Html\": \"%s\",\n", w.LastWork.Html)
+    fmt.Fprintf(&builder, "\t\t\t\"Width\": %d,\n", w.LastWork.Width)
+    fmt.Fprintf(&builder, "\t\t\t\"TimeCreate\": %s,\n", w.LastWork.Info.TimeCreate)
+    fmt.Fprintf(&builder, "\t\t\t\"TimeStart\": %s,\n", w.LastWork.Info.TimeStart)
+    fmt.Fprintf(&builder, "\t\t\t\"TimeEnd\": %s,\n", w.LastWork.Info.TimeEnd)
+
+    fmt.Fprintf(&builder, "\t\t\t\"Logs\": [\n")
+    for _, log := range w.LastWork.Info.Logs {
+        fmt.Fprintf(&builder, "\t\t\t\t\"%s\",\n", log)
+    }
+    fmt.Fprintf(&builder, "\t\t\t],\n")
+
+    fmt.Fprintf(&builder, "\t\t},\n")
+    fmt.Fprintln(&builder, "\t},")
+    return builder.String()
+}
+
 func (w *Worker) Printf(format string, args ...interface{}) {
-    log.Printf(fmt.Sprintf("Worker%d: %s", w.ID, format), args...)
+    _format := fmt.Sprintf("Worker%d: %s", w.ID, format)
+
+    log.Printf(_format, args...)
+    w.LastWork.Info.Logs = append(w.LastWork.Info.Logs, fmt.Sprintf(_format, args...))
 }
 
 func (w *Worker) Start() {
@@ -60,11 +110,14 @@ func (w *Worker) Start() {
 			select {
 			case work := <-w.Work:
 				// Receive a work request.
-				w.Printf("Received job %s.", work.Name)
+				w.Printf("Received job %s.\n", work.Name)
 				var picbuf []byte
 
+                w.LastWork = work
+                w.LastWork.Info.TimeStart = time.Now().String()
 				picbuf, err := w.doScreenShot(work.Ctx, w.Pt, work.Name, work.Width)
 				w.Printf("Finished job %s!", work.Name)
+                w.LastWork.Info.TimeEnd = time.Now().String()
 				if err != nil {
 					wr := WorkResponse{nil, err}
 					work.Response <- wr
@@ -104,7 +157,7 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 		}
 		worker := NewWorker(i+1, WorkerQueue, pt)
 		worker.Start()
-		p.workers = append(p.workers, worker)
+		p.workers = append(p.workers, &worker)
 	}
 
 	go func() {
@@ -124,7 +177,7 @@ func (p *QueuedShotter) StartDispatcher(nworkers int) {
 // QueuedShotter xxx
 type QueuedShotter struct {
 	devt         *devtool.DevTools
-	workers      []Worker
+	workers      []*Worker
 	chromeServer string
 	log          *logrus.Logger
 }
@@ -134,7 +187,7 @@ func (p *QueuedShotter) Stop() {
 	for _, w := range p.workers {
 		log.Println("stop worker: ", w.ID)
 		wg.Add(1)
-		go func(nw Worker) {
+		go func(nw *Worker) {
 			log.Println("stopping worker: ", nw.ID)
 			p.devt.Close(context.TODO(), nw.Pt)
 			wg.Done()
@@ -145,14 +198,24 @@ func (p *QueuedShotter) Stop() {
 }
 
 // Do xxx
-func (p *QueuedShotter) Do(ctx context.Context, url string, width int) ([]byte, error) {
+func (p *QueuedShotter) Do(ctx context.Context, url string, html string, width int) ([]byte, error) {
 	resp := make(chan WorkResponse)
-	work := WorkRequest{Name: url, Response: resp, Width: width, Ctx: ctx}
+	work := NewWorkRequest(url, resp, html, width, ctx)
 	log.Infof("Append job %s to chan", url)
 	WorkQueue <- work
 	response := <-resp
 	log.Infof("Job %s finished", url)
 	return response.Picbuf, response.Error
+}
+
+func (p *QueuedShotter) Stat() string {
+    var builder strings.Builder
+    fmt.Fprintln(&builder, "[")
+    for _, w := range p.workers {
+        fmt.Fprint(&builder, w.Json())
+    }
+    fmt.Fprintln(&builder, "]")
+    return builder.String()
 }
 
 func (w *Worker) doScreenShot(ctx context.Context, pt *devtool.Target, url string, width int) ([]byte, error) {

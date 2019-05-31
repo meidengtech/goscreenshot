@@ -69,7 +69,7 @@ func (a *app) Render(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
 
-	picbuf, err := a.shot.Do(ctx, pageURL, args.Width)
+	picbuf, err := a.shot.Do(ctx, pageURL, args.HTML, args.Width)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
         a.log.Infof("Failed: html %s width %d.", args.HTML, args.Width)
@@ -81,4 +81,8 @@ func (a *app) Render(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "image/jpeg")
 	w.Header().Set("content-length", fmt.Sprintf("%d", len(picbuf)))
 	w.Write(picbuf)
+}
+
+func (a *app) Stat(w http.ResponseWriter, r *http.Request) {
+    w.Write([]byte(a.shot.Stat()))
 }
