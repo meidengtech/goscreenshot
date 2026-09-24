@@ -6,7 +6,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.4.1
-	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/mafredri/cdp v0.23.2
 	github.com/sirupsen/logrus v1.9.1
